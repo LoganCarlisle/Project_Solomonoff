@@ -9,26 +9,42 @@
 
 ## 📄 Abstract
 
-**Project Solomonoff** is a research framework investigating the compression of knowledge
+**Project Solomonoff** is a research framework investigating the compression of knowledge,testing the hypothesis that the weight manifolds of Large Language Models are highly compressible.
 
 ---
 
-## ⚙️ Methodology
+## ⚙️ Methodology: Full-Weight Synthesis via Low-Rank Upscaling
 
-The architecture decouples the **Policy Generator** (Hypernetwork) from the **Policy Executor** (Frozen Backbone).
+Instead of storing static weight matrices ($W_{static} \in \mathbb{R}^{d_{out} \times d_{in}}$), we implement a **Generative Hypernetwork** that compresses a model to latent space and upscale on infrence. Since currently generating $d \times d$ parameters directly is computationally intractable, we generate **Low-Rank Factors** ($U, V$) and upscale them via matrix multiplication to approximate the target distribution.
+
+### The HyperNET Architecture
+
+The system functions as a **Neural Decompressor**:
+1.  **Compression:** The "Knowledge" of the model is compressed into the Hypernetwork parameters ($\theta_H$).
+2.  **Decompression:** For a given layer, the Hypernetwork projects a layer-specific embedding ($z_l$) into factors $U$ and $V$.
+3.  **Reconstruction:** The full weight matrix is reconstructed as $W_{approx} = U \times V$.
+
+$$W_{approx} \approx W_{target}$$
+
+This is done on the assumtion that the ith layer depends on the layer before it and so on, as such a recurrent process of feeding in hidden state can lead to coherent generations of a full model.
+
+### The System Diagram
 
 ```mermaid
 graph LR
-    subgraph "Compression Layer (The Generator)"
-        Input[Task Embedding z] -->|Input| HyperNet{HyperNetwork}
-        HyperNet -->|Synthesizes| Weights[LoRA Matrices A & B]
+    subgraph "The Generator (Decompressor)"
+        z[Layer/Task Embedding z] -->|Input| H{HyperNetwork}
+        H -->|Projections| Factors[Factors U & V]
+        Factors -->|MatMul (Upscale)| W_gen[Reconstructed Matrix W]
     end
 
-    subgraph "Inference Layer (The Agent)"
-        Weights -->|Stateless Injection| LLM[Frozen Transformer]
-        Query[User Input] --> LLM
-        LLM --> Output[Prediction]
+    subgraph "The Experiment (Distillation)"
+        W_gen -->|Inject| Student[Student GPT-2]
+        Input[Data] --> Student
+        Student -->|Logits| Y_hat
+        
+        Input --> Teacher[Frozen Original GPT-2]
+        Teacher -->|Logits| Y_ref
     end
     
-    style HyperNet fill:#eee,stroke:#333,stroke-width:2px
-    style LLM fill:#fff,stroke:#333,stroke-dasharray: 5 5
+    Y_hat <-->|KL Divergence / MSE| Y_ref
