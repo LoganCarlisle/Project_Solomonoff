@@ -29,22 +29,3 @@ $$W_{approx} \approx W_{target}$$
 This is done on the assumtion that the ith layer depends on the layer before it and so on, as such a recurrent process of feeding in hidden state can lead to coherent generations of a full model.
 
 ### The System Diagram
-
-```mermaid
-graph LR
-    subgraph "The Generator (Decompressor)"
-        z[Layer/Task Embedding z] -->|Input| H{HyperNetwork}
-        H -->|Projections| Factors[Factors U & V]
-        Factors -->|MatMul (Upscale)| W_gen[Reconstructed Matrix W]
-    end
-
-    subgraph "The Experiment (Distillation)"
-        W_gen -->|Inject| Student[Student GPT-2]
-        Input[Data] --> Student
-        Student -->|Logits| Y_hat
-        
-        Input --> Teacher[Frozen Original GPT-2]
-        Teacher -->|Logits| Y_ref
-    end
-    
-    Y_hat <-->|KL Divergence / MSE| Y_ref
