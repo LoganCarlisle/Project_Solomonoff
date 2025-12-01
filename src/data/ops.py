@@ -1,7 +1,30 @@
-#patchify logic
+#patchify logic and also the low rank upscaler
 import torch
 import torch.nn.functional as F
 from typing import Tuple
+
+def expand_low_rank(A: torch.Tensor, B: torch.Tensor, scaling_factor: float = 1.0) -> torch.Tensor:#gonna need to ad a complementary function and rank levels
+    """
+    Expands Low-Rank factors back to full weight matrix.
+    Follows standard LoRA convention: W = B @ A * scale
+    
+    Args:
+        A: The 'Down' projection [Rank, In_Dim]
+        B: The 'Up' projection [Out_Dim, Rank]
+        scaling_factor: Alpha / Rank (optional)
+        
+    Returns:
+        W: [Out_Dim, In_Dim]
+    """
+    # Ensure they are 2D
+    if A.dim() == 1: A = A.unsqueeze(0)
+    if B.dim() == 1: B = B.unsqueeze(1)
+    
+    # Perform multiplication
+    # B [Out, R] x A [R, In] -> [Out, In]
+    W = (B @ A) * scaling_factor
+    
+    return W
 
 def patchify_tensor(tensor: torch.Tensor, patch_size: int = 64) -> Tuple[torch.Tensor, Tuple[int, int]]:
     """
