@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import AutoModel, AutoModelForCausalLM
 from typing import List, Dict, Tuple, Any
+from .ops import *
 
 class HypernetDataset(Dataset):
     """
