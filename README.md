@@ -1,10 +1,9 @@
 # Project Solomonoff
 
-[![Status](https://img.shields.io/badge/Status-Active_Research-blue)]() [![Phase](https://img.shields.io/badge/Current_Phase-Neural_Compression-brightgreen)]() [![Model](https://img.shields.io/badge/Target-GPT--2_(124M)-red)]()
+[![Status](https://img.shields.io/badge/Status-Active_Research-blue)]() 
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Hydra](https://img.shields.io/badge/Config-Hydra-89b8cd?style=for-the-badge&logo=python&logoColor=white)](https://hydra.cc/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 > ** Research Preview:** This repository is currently in active development. The **Neural Compression** pipeline is functional, achieving loss descent on 100m+ param models.
 
 **Project Solomonoff** is a Hypernetwork framework designed to scale **Hypernets** to the foundation model era. It treats model parameters as sequential signal data, utilizing a postition invariant weight encoder,RNN **Mamba-SSM** backbone, and a **Coordinate-Aware Diffusion Transformer** to compress and reconstruct functional weights for 100M+ parameter architectures.
