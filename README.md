@@ -59,5 +59,34 @@ This is done on the assumtion that the ith layer depends on the layer before it 
 
 ### The System Diagram
 
-### References & Prior Work
-This project builds upon foundational research in Neural Functional Networks (NFNs), Hypernetworks, and Diffusion Models.Neural Functional Networks (NFNs)Permutation Equivariant Neural Functionals Zhou et al. (NeurIPS 2023) Defined the "Weight Space" learning problem and introduced Permutation Equivariant layers for processing neural network parameters.$$ArXiv$$Neural Functional Transformers Zhou et al. (NeurIPS 2023) Introduced attention-based architectures for weight spaces, treating neurons as sets of columns.$$Paper$$Hypernetworks & Architecture SearchHyperNetworks Ha et al. (ICLR 2017) The seminal work proposing the use of one network to generate weights for another.$$ArXiv$$Weight Agnostic Neural Networks Gaier & Ha (NeurIPS 2019) Demonstrated that architecture search can find networks that function with shared random weights, decoupling topology from parameters.$$ArXiv$$Generative BackbonesScalable Diffusion Models with Transformers (DiT) Peebles & Xie (ICCV 2023) Replaced the U-Net with Transformers for diffusion, enabling the "Patching" strategy used in Solomonoff.$$ArXiv$$Mamba: Linear-Time Sequence Modeling with Selective State Spaces Gu & Dao (2023) Introduced the SSM backbone used here for memory-efficient autoregressive weight generation.$$ArXiv$$Parameter EfficiencyLoRA: Low-Rank Adaptation of Large Language Models Hu et al. (ICLR 2022) Proposed the low-rank decomposition ($W = BA$) that Solomonoff targets for efficient generation.$$ArXiv$$Parameter-Efficient Transfer Learning for NLP Houlsby et al. (ICML 2019) Established the use of Adapter layers for modular fine-tuning.$$ArXiv$$
+##  References & Prior Work
+
+This project builds upon foundational research in Neural Functional Networks (NFNs)(NFN not much yet), Hypernetworks, and Generative Sequence Modeling.
+
+### Neural Functional Networks (NFNs) & Set Learning
+* **Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks** *Lee et al. (ICML 2019)* Proposed the linear-complexity attention mechanisms (ISAB and PMA) used in Solomonoff's encoder to process variable-sized sets of weight patches efficiently.  
+  [\[ArXiv\]](https://arxiv.org/abs/1810.00825)
+
+* **Permutation Equivariant Neural Functionals** *Zhou et al. (NeurIPS 2023)* Defined the "Weight Space" learning problem and introduced Permutation Equivariant layers for processing neural network parameters as functional representations.  
+  [\[ArXiv\]](https://arxiv.org/abs/2302.14040)
+
+* **Neural Functional Transformers** *Zhou et al. (NeurIPS 2023)* Introduced attention-based architectures for weight spaces, treating neurons as sets of columns to capture topology independent of permutation.  
+  [\[Paper\]](https://proceedings.neurips.cc/paper_files/paper/2023/file/f4757db82a02eea015670ecca605d5cc-Paper-Conference.pdf)
+
+### Hypernetworks & Architecture Search
+* **HyperNetworks** *Ha et al. (ICLR 2017)* The GOAT! The original paper that introduced HyperNets a all time paper but couldve came up with a cooler name for HyperNets imo(still love this paper).
+  [\[ArXiv\]](https://arxiv.org/abs/1609.09106)
+
+* **Weight Agnostic Neural Networks** *Gaier & Ha (NeurIPS 2019)* Demonstrated that architecture search can find networks that function with shared random weights, decoupling topology from specific parameters.  
+  [\[ArXiv\]](https://arxiv.org/abs/1906.04358)
+
+### Generative Backbones
+* **Scalable Diffusion Models with Transformers (DiT)** *Peebles & Xie (ICCV 2023)* Replaced the U-Net with Transformers for diffusion, enabling the "Patching" strategy used in Solomonoff to handle variable-size tensors.  
+  [\[ArXiv\]](https://arxiv.org/abs/2212.09748)
+
+* **Mamba: Linear-Time Sequence Modeling with Selective State Spaces** *Gu & Dao (2023)* Introduced the SSM backbone used here for memory-efficient autoregressive generation of deep layer sequences.  
+  [\[ArXiv\]](https://arxiv.org/abs/2312.00752)
+
+### Parameter Efficiency
+* **LoRA: Low-Rank Adaptation of Large Language Models** *Hu et al. (ICLR 2022)* Proposed the low-rank decomposition ($W = BA$) that this project targets for efficient compression and generation.  
+  [\[ArXiv\]](https://arxiv.org/abs/2106.09685)
