@@ -1,24 +1,24 @@
+# using kernals from fla these are the imports that get wrapped for to keep previous state
+#shoutout the fla peeps
+# add citation eventually
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# using kernals from fla these are the imports that get wrapped for to keep previous state
-#shoutout the fla peeps
-# add citation eventually
+# KERNEL IMPORTS
 try:
     from fla.ops.gated_delta_rule import chunk_gated_delta_rule, fused_recurrent_gated_delta_rule
     HAS_DELTA = True
 except ImportError:
     HAS_DELTA = False
-    print("FLAWrapper ERROR: DeltaNet kernels not found.")
+    print("RobustWrapper ERROR: DeltaNet kernels not found.")
 
 try:
     from fla.ops.gla import chunk_gla, fused_recurrent_gla
     HAS_GLA = True
 except ImportError:
     HAS_GLA = False
-    print("FLAWrapper ERROR: GLA kernels not found.")
-
+    print("RobustWrapper ERROR: GLA kernels not found.")
 
 class RobustGLA(nn.Module):
     def __init__(self, d_model, num_heads=4):
@@ -40,10 +40,9 @@ class RobustGLA(nn.Module):
         g = F.logsigmoid(self.g_proj(x)).view(B, L, self.num_heads, -1)
         
         if not HAS_GLA: raise ImportError("GLA Kernels missing")
-        try:
-            y, final_state = chunk_gla(q, k, v, g, initial_state=initial_state, output_final_state=True)
-        except TypeError:
-            y, final_state = fused_recurrent_gla(q, k, v, g, initial_state=initial_state, output_final_state=True)
+        
+     
+        y, final_state = chunk_gla(q, k, v, g, initial_state=initial_state, output_final_state=True)
         
         y = y.reshape(B, L, D)
         return self.o_proj(self.norm(y)), final_state
@@ -81,10 +80,12 @@ class RobustDeltaNet(nn.Module):
         beta = self.beta_proj(x).view(B, L, self.num_heads, -1)
         
         if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
-        try:
-            y, final_state = chunk_gated_delta_rule(q, k, v, beta, initial_state=initial_state, output_final_state=True)
-        except TypeError:
-            y, final_state = fused_recurrent_gated_delta_rule(q, k, v, beta, initial_state=initial_state, output_final_state=True)
+        
+        y, final_state = chunk_gated_delta_rule(
+            q, k, v, beta, 
+            initial_state=initial_state, 
+            output_final_state=True
+        )
             
         y = y.reshape(B, L, D)
         return self.o_proj(self.norm(y)), final_state
@@ -97,21 +98,20 @@ class RobustDeltaNet(nn.Module):
         v = self.v_proj(x_seq).view(B, L, self.num_heads, -1)
         beta = self.beta_proj(x_seq).view(B, L, self.num_heads, -1)
         
-        if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
+        if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing yeesh")
         y, new_state = fused_recurrent_gated_delta_rule(q, k, v, beta, initial_state=prev_state, output_final_state=True)
         return self.o_proj(self.norm(y.reshape(B, D))), new_state
-
 
 class StackedRobustBackbone(nn.Module):
     """
     Stacks multiple robust layers with residual connections.
-    Manages a list of states [S_0, S_1, ... S_N].
+    Manages a list of states [S_0, S_1, ... S_N] needed for context
     """
     def __init__(self, layer_type, d_model, num_layers=4, num_heads=4):
         super().__init__()
         self.layers = nn.ModuleList()
         
-        # Instantiate layers based on type string use gdn for gated delta net
+        # Instantiate layers based on type string
         for _ in range(num_layers):
             if layer_type == 'gla':
                 self.layers.append(RobustGLA(d_model, num_heads=num_heads))
@@ -126,10 +126,10 @@ class StackedRobustBackbone(nn.Module):
         current_x = x
         
         for i, layer in enumerate(self.layers):
-            # run layer
+            # Run layer
             out_x, state = layer.forward_train(current_x, initial_state=initial_states[i])
             
-            # residual Connection
+            # Residual Connection
             current_x = current_x + out_x
             final_states.append(state)
             
@@ -146,7 +146,7 @@ class StackedRobustBackbone(nn.Module):
             # Run layer
             out_x, state = layer.forward_step(current_x, prev_state=prev_states[i])
             
-            # Residual Connection for seq gen
+            # Residual Connection
             current_x = current_x + out_x
             new_states.append(state)
             
