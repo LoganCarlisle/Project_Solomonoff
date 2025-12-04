@@ -23,14 +23,15 @@ The core infrastructure for handling massive, variable-sized weight spaces is bu
 Transitioning from encoding existing models to fabricating novel models from latent noise.
 - [ ] **Experiment on various Architectures** Test leading SOTA Architetures for the Hypernet Model
 - [ ] **Pure Noise Generation:** Validating functional Perplexity on weights generated autoregressively without Teacher Forcing.
-- [ ] **Latent Space Analysis:** Investigating the smooth interpolation between different model checkpoints (e.g., interpolated weights between two fine-tunes). More focused on scaling though for now.
-- [ ] **Local Task Distillation:** Refining the auxiliary loss engine to enforce functional correctness (activations) during the generation process.
+- [ ] **Local Task Distillation:** Refining the auxiliary loss engine to enforce functional correctness (activations) during the generation process.(Almost there running probe activation loss layer by layer for more cohernt perplexity)
 - [ ] **Real Task Loss Backpropagation:** Implementing memory-efficient gradient flow from validation Perplexity back to the Hypernetwork.
 
 
 ### 🔭 Phase 3: Scaling & Optimization (Future)
 - [ ] **Scale to 1B+ Parameters:** Optimizing the pipeline for Llama/Pythia scale models.
 - [ ] **Scale and generalize across architetures** Train on multiple models and archietures to investigate zero shot training.
+- [ ] **Investigate hain Of Weights** If all else scales hopefully, investigate the use of Chain of Weights where the model dynamically adds layers at test time. This would be a true parameter aware model.
+
 
 
 
