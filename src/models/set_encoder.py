@@ -63,40 +63,78 @@ class PMA(nn.Module):
 
     def forward(self, X):
         return self.mab(self.S.repeat(X.size(0), 1, 1), X)
-class SetTransformerEncoder(nn.Module):
-    """
-    encode bariable patches using isab + pma pooling heavy work and tweaking needed for finding the right encoder architeture
-    """
-    def __init__(self, patch_dim, hidden_dim, num_inds=32, num_latents=64):
+#archieture embedder hopefully helps converge quicker to better perplexity
+class ArchitectureEmbedder(nn.Module):
+    def __init__(self, hidden_dim, num_types=10, num_semantics=200): # Increased to 200
         super().__init__()
-        self.input_proj = nn.Linear(patch_dim, hidden_dim)
+        self.hidden_dim = hidden_dim
         
-        # induced self attention block so its encoded invariant
-        self.enc = nn.Sequential(
-            ISAB(hidden_dim, hidden_dim, num_heads=4, num_inds=num_inds, ln=True),
-            ISAB(hidden_dim, hidden_dim, num_heads=4, num_inds=num_inds, ln=True)
+        #Structural IDs
+        self.type_emb = nn.Embedding(num_types, hidden_dim)
+        
+        # Semantic Role IDs (Dynamic Vocab)
+        self.semantic_emb = nn.Embedding(num_semantics, hidden_dim)
+        
+        # Continuous Properties
+        self.shape_proj = nn.Sequential(
+            nn.Linear(4, hidden_dim // 2),
+            nn.SiLU(),
+            nn.Linear(hidden_dim // 2, hidden_dim)
         )
+        self.param_cnt_proj = nn.Linear(1, hidden_dim)
         
-        #  Pooling Step (PMA)
-        # this summarizes the set into fixed vectors
-        self.pool = PMA(hidden_dim, num_heads=4, num_seeds=num_latents, ln=True)
         
-        self.out_proj = nn.Linear(hidden_dim, hidden_dim)
+        self.out_proj = nn.Linear(hidden_dim * 4, hidden_dim)
 
-    def forward(self, x_patches):
-        # Project
-        x = self.input_proj(x_patches) # [B, N, Hidden]
+    def forward(self, type_ids, semantic_ids, shape_vecs, param_counts):
+        # dims
+        if type_ids.dim() == 2: type_ids = type_ids.squeeze(-1)
+        if semantic_ids.dim() == 2: semantic_ids = semantic_ids.squeeze(-1)
+        if param_counts.dim() == 1: param_counts = param_counts.unsqueeze(-1)
         
-        # Interact Self-Attention approximation
+        t_emb = self.type_emb(type_ids)
+        sem_emb = self.semantic_emb(semantic_ids) # [Batch, Hidden]
+        s_emb = self.shape_proj(shape_vecs)
+        p_emb = self.param_cnt_proj(param_counts)
+        
+        concat = torch.cat([t_emb, sem_emb, s_emb, p_emb], dim=-1)
+        return self.out_proj(concat)
+
+class SetTransformerEncoder(nn.Module):
+    def __init__(self, patch_dim, hidden_dim, num_inds=32, num_latents=32, num_heads=4, num_layers=1):
+        super().__init__()
+        
+        self.input_proj = nn.Linear(patch_dim, hidden_dim)
+        layers = []
+        for _ in range(num_layers):
+            layers.append(ISAB(hidden_dim, hidden_dim, num_heads=num_heads, num_inds=num_inds, ln=True))
+        self.enc = nn.Sequential(*layers)
+        self.pool = PMA(hidden_dim, num_heads=num_heads, num_seeds=num_latents, ln=True)
+        self.weight_out_proj = nn.Linear(hidden_dim, hidden_dim)
+        
+        # added metadata embedder for layer type
+        self.meta_embedder = ArchitectureEmbedder(hidden_dim)
+        
+        self.fusion_norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x_patches, metadata=None):
+        x = self.input_proj(x_patches)
         x = self.enc(x)
+        latents = self.pool(x)
+        w_emb = self.weight_out_proj(latents.mean(dim=1)) 
         
-        #  Pool Summarize
-        latents = self.pool(x) # [B, Num_Latents, Hidden]
+        if metadata is not None:
+            if isinstance(metadata, list): pass 
+            else:
+                topo_emb = self.meta_embedder(
+                    metadata['type_id'], 
+                    metadata['semantic_id'], 
+                    metadata['shape_vec'], 
+                    metadata['param_count']
+                )
+                return self.fusion_norm(w_emb + topo_emb)
         
-        # Collapse to single vector for Mamba or keep as sequence if Mamba supports it, here we mean, depending on the architure changes
-        global_state = latents.mean(dim=1)
-        
-        return self.out_proj(global_state)
+        return w_emb
 """
 @InProceedings{lee2019set,
     title={Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks},
