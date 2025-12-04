@@ -26,54 +26,54 @@ class ModelAssembler:
 The metadata list from the Dataset (contains parameter names and shapes). 
 patch_size: Size used during patching. 
 Returns: Runnable PyTorch model with injected weights. """
-    def assemble(self, 
-                 generated_outputs: List[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]], 
-                 metadata_list: List[Dict],
-                 patch_size: int = 64):
-        """
-        Args:
-            generated_outputs: List of patched tensors [N, 4096] or factors.
-            metadata_list: The metadata list from the Dataset.
-        """
-        model = self.create_skeleton()
-        state_dict = model.state_dict()
+def assemble(self, 
+             generated_outputs: List[Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]], 
+             metadata_list: List[Dict],
+             patch_size: int = 64):
+    """
+    Args:
+        generated_outputs: List of patched tensors [N, 4096] or factors.
+        metadata_list: The metadata list from the Dataset.
+    """
+    model = self.create_skeleton()
+    state_dict = model.state_dict()
+    
+    # Iterate and inject
+    for i, output in enumerate(generated_outputs):
+        meta = metadata_list[i]
+        name = meta['name']
         
-        # Iterate and inject
-        for i, output in enumerate(generated_outputs):
-            meta = metadata_list[i]
-            name = meta['name']
-            
-            # Get Target Shape from METADATA Used for Unpatching
-            # Note had issues creased out: This might be (1, 768) for a bias, even if model wants (768,)
-            reconstruction_shape = meta['original_shape']
-            
-            # Reconstruct Unpatch  Expand
-            if isinstance(output, (tuple, list)) and len(output) == 2:
-                # Low Rank Case
-                full_weight = expand_low_rank(output[0], output[1])
-            else:
-                # Direct Patch Case
-                full_weight = unpatchify_tensor(output, reconstruction_shape, patch_size)
+        # Get Target Shape from METADATA Used for Unpatching
+        # Note had issues creased out: This might be (1, 768) for a bias, even if model wants (768,)
+        reconstruction_shape = meta['original_shape']
+        
+        # Reconstruct Unpatch  Expand
+        if isinstance(output, (tuple, list)) and len(output) == 2:
+            # Low Rank Case
+            full_weight = expand_low_rank(output[0], output[1])
+        else:
+            # Direct Patch Case
+            full_weight = unpatchify_tensor(output, reconstruction_shape, patch_size)
 
-            # Injection Logic for weights
-            if name in state_dict:
-                param = state_dict[name]
-                
-               
-                if full_weight.shape != param.shape:
-                    if full_weight.numel() == param.numel():
-                        full_weight = full_weight.view_as(param)
-                    else:
-                        print(f" Shape Mismatch for {name}: Gen {full_weight.shape} vs Param {param.shape}")
-                        continue 
-                
-                # Copy values
-                param.copy_(full_weight)
-                
-            else:
-                pass 
+        # Injection Logic for weights
+        if name in state_dict:
+            param = state_dict[name]
+            
+           
+            if full_weight.shape != param.shape:
+                if full_weight.numel() == param.numel():
+                    full_weight = full_weight.view_as(param)
+                else:
+                    print(f" Shape Mismatch for {name}: Gen {full_weight.shape} vs Param {param.shape}")
+                    continue 
+            
+            # Copy values
+            param.copy_(full_weight)
+            
+        else:
+            pass 
 
-        return model
+    return model
 
 def verify_assembly_simple(self, model, input_text="Hello world"):
         """runna quick logits check before running full perplexity."""
