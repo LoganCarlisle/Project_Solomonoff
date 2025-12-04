@@ -30,7 +30,7 @@ Transitioning from encoding existing models to fabricating novel models from lat
 ### 🔭 Phase 3: Scaling & Optimization (Future)
 - [ ] **Scale to 1B+ Parameters:** Optimizing the pipeline for Llama/Pythia scale models.
 - [ ] **Scale and generalize across architetures** Train on multiple models and archietures to investigate zero shot training.
-- [ ] **Investigate hain Of Weights** If all else scales hopefully, investigate the use of Chain of Weights where the model dynamically adds layers at test time. This would be a true parameter aware model.
+- [ ] **Investigate Chain of Weights** If all else scales hopefully, investigate the use of Chain of Weights where the model dynamically adds layers at test time. This would be a true parameter aware model.
 
 
 
