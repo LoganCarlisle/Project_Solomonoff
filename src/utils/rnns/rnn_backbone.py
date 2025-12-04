@@ -20,6 +20,7 @@ except ImportError:
     HAS_GLA = False
     print("RobustWrapper ERROR: GLA kernels not found.")
 
+
 class RobustGLA(nn.Module):
     def __init__(self, d_model, num_heads=4):
         super().__init__()
@@ -41,7 +42,8 @@ class RobustGLA(nn.Module):
         
         if not HAS_GLA: raise ImportError("GLA Kernels missing")
         
-     
+        # Removed try-except fallback. 
+        # We MUST use the chunk kernel for training gradients.
         y, final_state = chunk_gla(q, k, v, g, initial_state=initial_state, output_final_state=True)
         
         y = y.reshape(B, L, D)
@@ -68,6 +70,8 @@ class RobustDeltaNet(nn.Module):
         self.q_proj = nn.Linear(d_model, d_model, bias=False)
         self.k_proj = nn.Linear(d_model, d_model, bias=False)
         self.v_proj = nn.Linear(d_model, d_model, bias=False)
+        # Added Gate Projection (Required for Gated DeltaNet)
+        self.g_proj = nn.Linear(d_model, d_model, bias=False) 
         self.beta_proj = nn.Linear(d_model, d_model, bias=False)
         self.o_proj = nn.Linear(d_model, d_model, bias=False)
         self.norm = nn.LayerNorm(d_model)
@@ -77,12 +81,15 @@ class RobustDeltaNet(nn.Module):
         q = self.q_proj(x).view(B, L, self.num_heads, -1)
         k = self.k_proj(x).view(B, L, self.num_heads, -1)
         v = self.v_proj(x).view(B, L, self.num_heads, -1)
+        # Calculate Gate (g)
+        g = F.logsigmoid(self.g_proj(x)).view(B, L, self.num_heads, -1)
         beta = self.beta_proj(x).view(B, L, self.num_heads, -1)
         
         if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
         
+        # Pass 'g' to the kernel (Signature: q, k, v, g, beta...)
         y, final_state = chunk_gated_delta_rule(
-            q, k, v, beta, 
+            q, k, v, g, beta, 
             initial_state=initial_state, 
             output_final_state=True
         )
@@ -96,22 +103,31 @@ class RobustDeltaNet(nn.Module):
         q = self.q_proj(x_seq).view(B, L, self.num_heads, -1)
         k = self.k_proj(x_seq).view(B, L, self.num_heads, -1)
         v = self.v_proj(x_seq).view(B, L, self.num_heads, -1)
+        # Calculate Gate (g)
+        g = F.logsigmoid(self.g_proj(x_seq)).view(B, L, self.num_heads, -1)
         beta = self.beta_proj(x_seq).view(B, L, self.num_heads, -1)
         
-        if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing yeesh")
-        y, new_state = fused_recurrent_gated_delta_rule(q, k, v, beta, initial_state=prev_state, output_final_state=True)
+        if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
+        
+        # Pass 'g' to the recurrent kernel
+        y, new_state = fused_recurrent_gated_delta_rule(
+            q, k, v, g, beta, 
+            initial_state=prev_state, 
+            output_final_state=True
+        )
         return self.o_proj(self.norm(y.reshape(B, D))), new_state
+
 
 class StackedRobustBackbone(nn.Module):
     """
     Stacks multiple robust layers with residual connections.
-    Manages a list of states [S_0, S_1, ... S_N] needed for context
+    Manages a list of states [S_0, S_1, ... S_N].
     """
     def __init__(self, layer_type, d_model, num_layers=4, num_heads=4):
         super().__init__()
         self.layers = nn.ModuleList()
         
-        # Instantiate layers based on type string
+        # Instantiate layers based on type string add more later from fla
         for _ in range(num_layers):
             if layer_type == 'gla':
                 self.layers.append(RobustGLA(d_model, num_heads=num_heads))
