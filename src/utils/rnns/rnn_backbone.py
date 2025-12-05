@@ -26,31 +26,44 @@ class RobustGLA(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.num_heads = num_heads
+        
+        # Pre-Normalization Stabilize Inputs
+        self.norm = nn.LayerNorm(d_model)
+        
         self.q_proj = nn.Linear(d_model, d_model, bias=False)
         self.k_proj = nn.Linear(d_model, d_model, bias=False)
         self.v_proj = nn.Linear(d_model, d_model, bias=False)
         self.g_proj = nn.Linear(d_model, d_model, bias=False)
         self.o_proj = nn.Linear(d_model, d_model, bias=False)
-        self.norm = nn.LayerNorm(d_model)
+
+        # 2. Zero-Init Output (Start as Identity)
+        nn.init.zeros_(self.o_proj.weight)
 
     def forward_train(self, x, initial_state=None):
-        B, L, D = x.shape
-        q = self.q_proj(x).view(B, L, self.num_heads, -1)
-        k = self.k_proj(x).view(B, L, self.num_heads, -1)
-        v = self.v_proj(x).view(B, L, self.num_heads, -1)
-        g = F.logsigmoid(self.g_proj(x)).view(B, L, self.num_heads, -1)
+        # Apply Norm FIRST (Pre-Norm)
+        x_norm = self.norm(x)
+        
+        B, L, D = x_norm.shape
+        q = self.q_proj(x_norm).view(B, L, self.num_heads, -1)
+        k = self.k_proj(x_norm).view(B, L, self.num_heads, -1)
+        v = self.v_proj(x_norm).view(B, L, self.num_heads, -1)
+        g = F.logsigmoid(self.g_proj(x_norm)).view(B, L, self.num_heads, -1)
         
         if not HAS_GLA: raise ImportError("GLA Kernels missing")
         
-        # Removed try-except fallback. 
-        # We MUST use the chunk kernel for training gradients.
+        # Force Float32 for kernel stability
+        q, k, v, g = q.float(), k.float(), v.float(), g.float()
+        
         y, final_state = chunk_gla(q, k, v, g, initial_state=initial_state, output_final_state=True)
         
         y = y.reshape(B, L, D)
-        return self.o_proj(self.norm(y)), final_state
+        return self.o_proj(y), final_state
 
     def forward_step(self, x, prev_state=None):
-        x_seq = x.unsqueeze(1)
+        # apply norm FIRST
+        x_norm = self.norm(x)
+        
+        x_seq = x_norm.unsqueeze(1)
         B, L, D = x_seq.shape
         q = self.q_proj(x_seq).view(B, L, self.num_heads, -1)
         k = self.k_proj(x_seq).view(B, L, self.num_heads, -1)
@@ -58,36 +71,49 @@ class RobustGLA(nn.Module):
         g = F.logsigmoid(self.g_proj(x_seq)).view(B, L, self.num_heads, -1)
         
         if not HAS_GLA: raise ImportError("GLA Kernels missing")
+        
+        # Force Float32
+        q, k, v, g = q.float(), k.float(), v.float(), g.float()
+        
         y, new_state = fused_recurrent_gla(q, k, v, g, initial_state=prev_state, output_final_state=True)
         
-        return self.o_proj(self.norm(y.reshape(B, D))), new_state
+        return self.o_proj(y.reshape(B, D)), new_state
 
 class RobustDeltaNet(nn.Module):
     def __init__(self, d_model, num_heads=8):
         super().__init__()
         self.d_model = d_model
         self.num_heads = num_heads
+        
+        # 1. Pre-Normalization
+        self.norm = nn.LayerNorm(d_model)
+        
         self.q_proj = nn.Linear(d_model, d_model, bias=False)
         self.k_proj = nn.Linear(d_model, d_model, bias=False)
         self.v_proj = nn.Linear(d_model, d_model, bias=False)
-        # Added Gate Projection (Required for Gated DeltaNet)
         self.g_proj = nn.Linear(d_model, d_model, bias=False) 
         self.beta_proj = nn.Linear(d_model, d_model, bias=False)
         self.o_proj = nn.Linear(d_model, d_model, bias=False)
-        self.norm = nn.LayerNorm(d_model)
+        
+        # Zero-Init Output from that one diffusion paper 
+        nn.init.zeros_(self.o_proj.weight)
 
     def forward_train(self, x, initial_state=None):
-        B, L, D = x.shape
-        q = self.q_proj(x).view(B, L, self.num_heads, -1)
-        k = self.k_proj(x).view(B, L, self.num_heads, -1)
-        v = self.v_proj(x).view(B, L, self.num_heads, -1)
-        # Calculate Gate (g)
-        g = F.logsigmoid(self.g_proj(x)).view(B, L, self.num_heads, -1)
-        beta = self.beta_proj(x).view(B, L, self.num_heads, -1)
+        # apply norm first as hopefully to prevent nans stacking
+        x_norm = self.norm(x)
+        
+        B, L, D = x_norm.shape
+        q = self.q_proj(x_norm).view(B, L, self.num_heads, -1)
+        k = self.k_proj(x_norm).view(B, L, self.num_heads, -1)
+        v = self.v_proj(x_norm).view(B, L, self.num_heads, -1)
+        g = F.logsigmoid(self.g_proj(x_norm)).view(B, L, self.num_heads, -1)
+        beta = self.beta_proj(x_norm).view(B, L, self.num_heads, -1)
         
         if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
         
-        # Pass 'g' to the kernel (Signature: q, k, v, g, beta...)
+        # Force Float32 for kernel stability
+        q, k, v, g, beta = q.float(), k.float(), v.float(), g.float(), beta.float()
+        
         y, final_state = chunk_gated_delta_rule(
             q, k, v, g, beta, 
             initial_state=initial_state, 
@@ -95,39 +121,41 @@ class RobustDeltaNet(nn.Module):
         )
             
         y = y.reshape(B, L, D)
-        return self.o_proj(self.norm(y)), final_state
+        return self.o_proj(y), final_state
 
     def forward_step(self, x, prev_state=None):
-        x_seq = x.unsqueeze(1)
+        # apply norm first as hopefully to prevent nans stacking
+        x_norm = self.norm(x)
+        
+        x_seq = x_norm.unsqueeze(1)
         B, L, D = x_seq.shape
         q = self.q_proj(x_seq).view(B, L, self.num_heads, -1)
         k = self.k_proj(x_seq).view(B, L, self.num_heads, -1)
         v = self.v_proj(x_seq).view(B, L, self.num_heads, -1)
-        # Calculate Gate (g)
         g = F.logsigmoid(self.g_proj(x_seq)).view(B, L, self.num_heads, -1)
         beta = self.beta_proj(x_seq).view(B, L, self.num_heads, -1)
         
         if not HAS_DELTA: raise ImportError("DeltaNet Kernels missing")
         
-        # Pass 'g' to the recurrent kernel
+        # Force Float32
+        q, k, v, g, beta = q.float(), k.float(), v.float(), g.float(), beta.float()
+        
         y, new_state = fused_recurrent_gated_delta_rule(
             q, k, v, g, beta, 
             initial_state=prev_state, 
             output_final_state=True
         )
-        return self.o_proj(self.norm(y.reshape(B, D))), new_state
+        return self.o_proj(y.reshape(B, D)), new_state
 
 
 class StackedRobustBackbone(nn.Module):
     """
     Stacks multiple robust layers with residual connections.
-    Manages a list of states [S_0, S_1, ... S_N].
     """
     def __init__(self, layer_type, d_model, num_layers=4, num_heads=4):
         super().__init__()
         self.layers = nn.ModuleList()
         
-        # Instantiate layers based on type string add more later from fla
         for _ in range(num_layers):
             if layer_type == 'gla':
                 self.layers.append(RobustGLA(d_model, num_heads=num_heads))
@@ -142,7 +170,8 @@ class StackedRobustBackbone(nn.Module):
         current_x = x
         
         for i, layer in enumerate(self.layers):
-            # Run layer
+            # Pre-Norm is handled inside the layer now
+            # do the residual addition here.
             out_x, state = layer.forward_train(current_x, initial_state=initial_states[i])
             
             # Residual Connection
@@ -159,10 +188,7 @@ class StackedRobustBackbone(nn.Module):
         current_x = x
         
         for i, layer in enumerate(self.layers):
-            # Run layer
             out_x, state = layer.forward_step(current_x, prev_state=prev_states[i])
-            
-            # Residual Connection
             current_x = current_x + out_x
             new_states.append(state)
             
