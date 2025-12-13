@@ -14,7 +14,7 @@
 
 ###  Phase 1: Architecture & Compression (Completed)
 The core infrastructure for handling massive, variable-sized weight spaces is built and verified.
-- [x] **Patch-Based Tokenization:** Lossless conversion of arbitrary 2D weight matrices (e.g., $50k \times 768$) into fixed-size patch sequences.
+- [x] **Patch-Based Tokenization:** Lossless conversion of arbitrary 2D weight matrices (e.g., $50k \times 768$) into fixed-size patch sequences.-->scracth this, square patches dont work for representing weights like they do with images as images pixels are follow a distribution with sorounding pixels, chose to preprocess the data more into low rank and use a row and column encoding scheme.
 - [x] **Permutation-Invariant Encoder:** Implementation of Set Transformers to capture layer topology independent of input order.
 - [x] **Memory-Efficient Training:** Implementation of Truncated Backpropagation Through Time (TBPTT) and Gradient Checkpointing to fit 148-layer training on consumer hardware.
 - [x] **Signal Preservation:** Solved "Signal Propagation Collapse" via local activation stability losses, ensuring reconstructed weights maintain unit variance.
