@@ -64,6 +64,9 @@ This is done on the assumtion that the ith layer depends on the layer before it 
 
 This project builds upon foundational research in Neural Functional Networks (NFNs)(NFN not much yet), Hypernetworks, and Generative Sequence Modeling.
 
+### New theory data!
+  [\[ArXiv\]](https://arxiv.org/pdf/2512.05117) fresh paper shows promising data.
+
 ### Neural Functional Networks (NFNs) & Set Learning
 * **Set Transformer: A Framework for Attention-based Permutation-Invariant Neural Networks** *Lee et al. (ICML 2019)* Proposed the linear-complexity attention mechanisms (ISAB and PMA) used in Solomonoff's encoder to process variable-sized sets of weight patches efficiently.  
   [\[ArXiv\]](https://arxiv.org/abs/1810.00825)
