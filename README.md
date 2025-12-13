@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](./LICENSE)
 > ** Research Preview:** This repository is currently in active development. The **Neural Compression** pipeline is functional, achieving loss descent on 100m+ param models.
 
-**Project Solomonoff** is a Hypernetwork framework designed to scale **Hypernets** to the foundation model era. It treats model parameters as sequential signal data, utilizing a postition invariant weight encoder,RNN **Mamba-SSM** backbone, and a **Coordinate-Aware Diffusion Transformer** to compress and reconstruct functional weights for 100M+ parameter architectures.
+**Project Solomonoff** is a Hypernetwork framework designed to scale **Hypernets** to the foundation model era. It treats model parameters as sequential signal data, utilizing a postition invariant weight encoder,RNN backbone, and a **Coordinate-Aware Diffusion Transformer** to compress and reconstruct functional weights for 100M+ parameter architectures.
 
 ---
 
