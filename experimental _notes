@@ -1,2 +1,4 @@
 been running more and more experiments, tuning hyperparams are so important, god are hypernets finicky amkes sense since weights are so confusing/abstract.This stuff is so crazy looking at these giant matrixes 
 and somehow the model is able to learn the underlying physics of them is beyond me.
+
+VAEs help a lot in smoothing latent space makes it much easier still struggling with bigger matrixes however loss on smaller ones work
