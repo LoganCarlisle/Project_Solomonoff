@@ -3,3 +3,10 @@ and somehow the model is able to learn the underlying physics of them is beyond 
 
 VAEs help a lot in smoothing latent space makes it much easier still struggling with bigger matrixes however loss on smaller ones work
 svd even with all the tricks its hard for a manifold to be learnt and its still to big to  turn into latents without patching, so currently on Tensor Trains looks promising.
+
+3.6.2026 finally got time to work on this project again
+new notes- i remember a long time ago wanting to work on spike trains and having a hypernet generate a spike train for a given prompt, now with the advances in mechanistic interpitabilyy
+we have circuits that are kinda like spike trains. So now the idea is to train a meta model on input-circuit-output sets. to run these circuits instead of using adjaceny matrixes that are hard to use infra
+wise im using sparse affine mask which should do the same thing.
+
+next big stage of the pipeline is to harvest a whole bunch of high quality sparse circuits from a donor model on complex tasks. 
