@@ -10,3 +10,9 @@ we have circuits that are kinda like spike trains. So now the idea is to train a
 wise im using sparse affine mask which should do the same thing.
 
 next big stage of the pipeline is to harvest a whole bunch of high quality sparse circuits from a donor model on complex tasks. 
+
+4.30.2026 still plugging away 
+-circuit idea was good but compiling and generating the circuits looked to be a differnt type of task
+- vae are crucial still borrowing from video gen im starting to see headway on the tokenization problem 
+
+
